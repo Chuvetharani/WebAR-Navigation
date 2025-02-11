@@ -1,0 +1,157 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR Navigation with Mini-Map</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://rawgit.com/jeromeetienne/ar.js/1.7.2/aframe/build/aframe-ar.min.js"></script>
+    <style>
+        /* Mini-map UI */
+        #minimap {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: white;
+        }
+
+        #mapCanvas {
+            width: 180px;
+            height: 180px;
+            background: #222;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        #resetButton {
+            margin-top: 10px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+
+    <!-- Mini-Map UI -->
+    <div id="minimap">
+        <canvas id="mapCanvas"></canvas>
+        <button id="resetButton" onclick="clearWaypoints()">Reset</button>
+    </div>
+
+    <a-scene embedded arjs>
+        <!-- AI Agent -->
+        <a-marker id="startMarker" preset="kanji">
+            <a-sphere id="aiAgent" position="0 0.5 0" radius="0.2" color="red"></a-sphere>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        let aiAgent = document.querySelector("#aiAgent");
+        let waypoints = [];
+        let moving = false;
+
+        // Mini-map canvas setup
+        let canvas = document.getElementById("mapCanvas");
+        let ctx = canvas.getContext("2d");
+
+        // Scale factor for world position
+        const SCALE_FACTOR = 2;
+
+        // Function to convert mini-map click to world coordinates
+        function mapClick(event) {
+            let rect = canvas.getBoundingClientRect();
+            let x = (event.clientX - rect.left) / rect.width * 2 - 1;
+            let z = (event.clientY - rect.top) / rect.height * 2 - 1;
+            let worldPos = { x: x * SCALE_FACTOR, y: 0.5, z: z * SCALE_FACTOR };
+
+            addWaypoint(worldPos);
+            drawWaypoint(event.clientX - rect.left, event.clientY - rect.top);
+        }
+
+        canvas.addEventListener("click", mapClick);
+
+        // Draw waypoints on mini-map
+        function drawWaypoint(x, y) {
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function moveAI(targetPosition) {
+            moving = true;
+
+            function animateMovement() {
+                let currentPos = aiAgent.getAttribute("position");
+
+                let newX = currentPos.x + (targetPosition.x - currentPos.x) * 0.05;
+                let newY = currentPos.y + (targetPosition.y - currentPos.y) * 0.05;
+                let newZ = currentPos.z + (targetPosition.z - currentPos.z) * 0.05;
+
+                aiAgent.setAttribute("position", { x: newX, y: newY, z: newZ });
+
+                let distance = Math.sqrt(
+                    (targetPosition.x - currentPos.x) ** 2 +
+                    (targetPosition.y - currentPos.y) ** 2 +
+                    (targetPosition.z - currentPos.z) ** 2
+                );
+
+                if (distance > 0.01) {
+                    requestAnimationFrame(animateMovement);
+                } else {
+                    moving = false;
+                    moveToNextWaypoint();
+                }
+            }
+
+            requestAnimationFrame(animateMovement);
+        }
+
+        function moveToNextWaypoint() {
+            if (waypoints.length > 0 && !moving) {
+                let nextWaypoint = waypoints.shift();
+                moveAI(nextWaypoint);
+            }
+        }
+
+        function addWaypoint(position) {
+            waypoints.push(position);
+            console.log(`Waypoint added: ${JSON.stringify(position)}`);
+            if (!moving) moveToNextWaypoint();
+        }
+
+        function clearWaypoints() {
+            waypoints = [];
+            moving = false;
+            aiAgent.setAttribute("position", { x: 0, y: 0.5, z: 0 }); // Reset position
+            console.log("Waypoints cleared");
+
+            // Clear mini-map markers
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Start marker detection
+        let startMarker = document.querySelector("#startMarker");
+        startMarker.addEventListener("markerFound", () => {
+            console.log("Start marker detected!");
+        });
+    </script>
+
+</body>
+</html>
