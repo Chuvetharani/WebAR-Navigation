@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markerless SLAM WebAR</title>
+    <title>Markerless WebAR with AR.js</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.7.2/dist/aframe-ar.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.133.1/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
     <script>
-        AFRAME.registerComponent('tap-place', {
+        AFRAME.registerComponent("tap-place", {
             init: function () {
                 const sceneEl = document.querySelector("a-scene");
-                const camera = document.querySelector("[camera]");
+                const cameraEl = document.querySelector("[camera]");
                 let sphere;
 
                 sceneEl.addEventListener("click", (event) => {
@@ -30,11 +29,9 @@
     </script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs webxr="optionalFeatures: hit-test;">
-        <a-camera position="0 1.6 0"></a-camera>
-
-        <!-- User taps to place sphere -->
+    <a-scene embedded arjs>
         <a-entity tap-place></a-entity>
+        <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 </body>
 </html>
