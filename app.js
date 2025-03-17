@@ -90,8 +90,14 @@ function createPath(startPosition) {
         new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
     ];
 
-    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
-    line.color = new BABYLON.Color3(1, 0, 0); // Red color
+    const colors = [
+        new BABYLON.Color4(1, 0, 0, 1),
+        new BABYLON.Color4(0, 1, 0, 1),
+        new BABYLON.Color4(0, 0, 1, 1),
+        new BABYLON.Color4(1, 1, 0, 1)
+    ]
+
+    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points, colors }, scene);
 }
 
 
