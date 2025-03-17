@@ -16,11 +16,9 @@ async function initializeWebXR() {
         const xrHitTest = xrFeaturesManager.enableFeature(BABYLON.WebXRHitTest, "latest");
 
         xrHitTest.onHitTestResultObservable.add((results) => {
-            console.log("Hit test results:", results.length);
             if (results.length) {
                 const hitPose = results[0].transformationMatrix;
                 const floorPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), hitPose);
-                console.log("Floor position:", floorPosition);
                 createPath(floorPosition);
             }
         });
@@ -41,18 +39,44 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).th
     video.srcObject = stream;
     video.play();
 });
+let qrDetected = false; // Ensure one-time detection
 
 function scanQR() {
     ctx.drawImage(video, 0, 0, canvasQR.width, canvasQR.height);
     const imageData = ctx.getImageData(0, 0, canvasQR.width, canvasQR.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-    if (code) {
+    if (code && !qrDetected) {
         console.log("QR Code Detected:", code.data);
-        placeNavigationPath(code.data); // Example: Use QR code data for path placement
+        
+        qrDetected = true; 
+
+        let startPosition = getWorldPositionFromQR(code.location);
+        console.log("World Position:", startPosition);
+        
+        createPath(startPosition);
     }
 
     requestAnimationFrame(scanQR);
+}
+
+function getWorldPositionFromQR(qrLocation) {
+    console.log("QR Location:", qrLocation);
+
+    const screenX = qrLocation.topLeftCorner.x + (qrLocation.bottomRightCorner.x - qrLocation.topLeftCorner.x) / 2;
+    const screenY = qrLocation.topLeftCorner.y + (qrLocation.bottomRightCorner.y - qrLocation.topLeftCorner.y) / 2;
+
+    const ray = scene.createPickingRay(screenX, screenY, BABYLON.Matrix.Identity(), camera);
+    const hit = scene.pickWithRay(ray);
+
+    if (hit.hit) {
+        let pos = hit.pickedPoint;
+        console.log("Picked Position:", pos);
+        return new BABYLON.Vector3(pos.x, 0, pos.z);
+    }
+
+    console.log("No hit detected, returning default position.");
+    return new BABYLON.Vector3(0, 0, -2); 
 }
 
 video.addEventListener("loadeddata", () => {
@@ -60,27 +84,36 @@ video.addEventListener("loadeddata", () => {
     scanQR(); // Start scanning only after the video is ready
 });
 
+let currentLine = null; // Store the last line reference
+
 function createPath(startPosition) {
+    console.log("Creating path at:", startPosition);
+
+    // Remove existing line
+    if (currentLine) {
+        console.log("Removing existing line");
+        currentLine.dispose();
+    }
+
     const points = [
         startPosition,
-        new BABYLON.Vector3(startPosition.x + 1, startPosition.y, startPosition.z + 1),
-        new BABYLON.Vector3(startPosition.x + 2, startPosition.y, startPosition.z + 2),
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 1),
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
     ];
 
-    const myColors = [
-        new BABYLON.Color4(1, 0, 0, 1),
-        new BABYLON.Color4(0, 1, 0, 1),
-        new BABYLON.Color4(0, 0, 1, 1),
-        new BABYLON.Color4(1, 1, 0, 1)
-    ]
+    currentLine = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
+    currentLine.color = new BABYLON.Color3(1, 0, 0); // Red color
+    currentLine.enableEdgesRendering();
+    currentLine.edgesWidth = 10; // Make the line thicker
 
-    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points, colors: myColors }, scene);
-    const debugCube = BABYLON.MeshBuilder.CreateBox("debugCube", { size: 0.2 }, scene);
-    debugCube.position = new BABYLON.Vector3(0, 1, 0); // Place it at eye level
-    
-    //line.color = new BABYLON.Color3(0, 1, 0); // Green color
-    scene.addMesh(line);
+    console.log("Line created:", currentLine);
 }
+
+let debugSphere = BABYLON.MeshBuilder.CreateSphere("debugSphere", { diameter: 0.1 }, scene);
+debugSphere.position = startPosition;
+debugSphere.material = new BABYLON.StandardMaterial("debugMat", scene);
+debugSphere.material.diffuseColor = new BABYLON.Color3(0, 1, 0); // Green
+console.log("Debug sphere at:", startPosition);
 
 engine.runRenderLoop(() => {
     scene.render();
