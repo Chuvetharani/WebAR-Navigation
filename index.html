@@ -1,37 +1,23 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markerless WebAR with AR.js</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
-    <script>
-        AFRAME.registerComponent("tap-place", {
-            init: function () {
-                const sceneEl = document.querySelector("a-scene");
-                const cameraEl = document.querySelector("[camera]");
-                let sphere;
-
-                sceneEl.addEventListener("click", (event) => {
-                    if (!sphere) {
-                        sphere = document.createElement("a-sphere");
-                        sphere.setAttribute("radius", "0.2");
-                        sphere.setAttribute("color", "red");
-                        sceneEl.appendChild(sphere);
-                    }
-
-                    let touchPoint = event.detail.intersection.point;
-                    sphere.setAttribute("position", `${touchPoint.x} 0.5 ${touchPoint.z}`);
-                });
-            }
-        });
-    </script>
+    <title>WebXR Navigation with QR and Footsteps</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
 </head>
-<body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs>
-        <a-entity tap-place></a-entity>
-        <a-camera position="0 1.6 0"></a-camera>
-    </a-scene>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <video id="qr-video" width="300" height="200" autoplay></video>
+    <canvas id="qr-canvas" width="300" height="200" style="display:none;"></canvas>
+
+    <!-- Babylon.js and QR scanning scripts -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+
+    <script src="app.js"></script>
 </body>
 </html>
