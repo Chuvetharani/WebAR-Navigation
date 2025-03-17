@@ -47,17 +47,35 @@ function scanQR() {
     ctx.drawImage(video, 0, 0, canvasQR.width, canvasQR.height);
     const imageData = ctx.getImageData(0, 0, canvasQR.width, canvasQR.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
-    console.log("Scanning...");
 
     if (code) {
         console.log("QR Code Detected:", code.data);
-        placeNavigationPath(code.data); // Example: Use QR code data for path placement
+        // Convert QR Code position to Babylon.js world coordinates
+        const qrPosition = getWorldPositionFromQR(code.location);
+
+        // Place the navigation path in front of the QR code
+        createPath(qrPosition);
     } else {
         console.log("No QR code detected");
     }
 
     requestAnimationFrame(scanQR);
 }
+
+function getWorldPositionFromQR(qrLocation) {
+    const screenX = qrLocation.topLeftCorner.x + (qrLocation.bottomRightCorner.x - qrLocation.topLeftCorner.x) / 2;
+    const screenY = qrLocation.topLeftCorner.y + (qrLocation.bottomRightCorner.y - qrLocation.topLeftCorner.y) / 2;
+
+    // Convert screen space to 3D world space
+    const pickResult = scene.pick(screenX, screenY);
+    if (pickResult.hit) {
+        return pickResult.pickedPoint;
+    }
+
+    // Default position if pick fails
+    return new BABYLON.Vector3(0, 0, -2);
+}
+
 
 video.addEventListener("loadeddata", () => {
     console.log("Camera feed is active");
@@ -68,14 +86,14 @@ video.addEventListener("loadeddata", () => {
 function createPath(startPosition) {
     const points = [
         startPosition,
-        new BABYLON.Vector3(startPosition.x + 1, startPosition.y, startPosition.z + 1),
-        new BABYLON.Vector3(startPosition.x + 2, startPosition.y, startPosition.z + 2),
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 1), // Move forward
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
     ];
 
     const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
     line.color = new BABYLON.Color3(1, 0, 0); // Red color
-    scene.addMesh(line);
 }
+
 
 const footprintTexture = new BABYLON.StandardMaterial("footprintMat", scene);
 footprintTexture.diffuseTexture = new BABYLON.Texture("footprint.png", scene); // Load a footprint texture
