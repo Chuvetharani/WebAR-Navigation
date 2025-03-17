@@ -25,6 +25,7 @@ async function initializeWebXR() {
                 const floorPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), hitPose);
                 console.log("Floor position:", floorPosition);
                 createPath(floorPosition);
+                createMarker(floorPosition);
             }
         });
         
@@ -55,6 +56,7 @@ function scanQR() {
 
         // Place the navigation path in front of the QR code
         createPath(qrPosition);
+        createMarker(qrPosition);
     } else {
         console.log("No QR code detected");
     }
@@ -82,6 +84,12 @@ video.addEventListener("loadeddata", () => {
     scanQR(); // Start scanning only after the video is ready
 });
 
+function createMarker(position) {
+    const marker = BABYLON.MeshBuilder.CreateSphere("qrMarker", { diameter: 0.1 }, scene);
+    marker.position = new BABYLON.Vector3(position.x, position.y + 0.2, position.z);
+    marker.material = new BABYLON.StandardMaterial("markerMat", scene);
+    marker.material.diffuseColor = new BABYLON.Color3(0, 1, 0); // Green marker
+}
 
 function createPath(startPosition) {
     const points = [
@@ -90,14 +98,8 @@ function createPath(startPosition) {
         new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
     ];
 
-    const colors = [
-        new BABYLON.Color4(1, 0, 0, 1),
-        new BABYLON.Color4(0, 1, 0, 1),
-        new BABYLON.Color4(0, 0, 1, 1),
-        new BABYLON.Color4(1, 1, 0, 1)
-    ]
-
-    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points, colors }, scene);
+    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
+    line.color = new BABYLON.Color3(1, 0, 0); // Red color
 }
 
 
@@ -119,7 +121,6 @@ function createFootstepsPath(startPosition) {
         }, i * 500); // Animate footsteps appearing over time
     }
 }
-
 
 engine.runRenderLoop(() => {
     scene.render();
