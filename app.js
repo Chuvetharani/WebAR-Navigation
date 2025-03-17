@@ -6,36 +6,43 @@ camera.attachControl(canvas, true);
 
 // Enable WebXR
 async function initializeWebXR() {
-    try {
-        const xrHelper = await scene.createDefaultXRExperienceAsync({
-            uiOptions: {
-                sessionMode: "immersive-ar",
-            },
-        });
-        console.log("WebXR session started");
-    
-        // Set up hit-test for floor detection
-        const xrFeaturesManager = xrHelper.baseExperience.featuresManager;
-        const xrHitTest = xrFeaturesManager.enableFeature(BABYLON.WebXRHitTest, "latest");
-    
-        xrHitTest.onHitTestResultObservable.add((results) => {
-            console.log("Hit test results:", results.length);
-            if (results.length) {
-                const hitPose = results[0].transformationMatrix;
-                const floorPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), hitPose);
-                console.log("Floor position:", floorPosition);
-                createPath(floorPosition);
-            }
-        });
-        
-    } catch (error) {
-        console.error("WebXR initialization failed:", error);
-    }
+    const xrHelper = await scene.createDefaultXRExperienceAsync({
+        uiOptions: {
+            sessionMode: "immersive-ar",
+        },
+    });
+
+    // Set up hit-test for floor detection
+    const xrFeaturesManager = xrHelper.baseExperience.featuresManager;
+    const xrHitTest = xrFeaturesManager.enableFeature(BABYLON.WebXRHitTest, "latest");
+
+    xrHitTest.onHitTestResultObservable.add((results) => {
+        if (results.length) {
+            const hitPose = results[0].transformationMatrix;
+            const floorPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), hitPose);
+            createPath(floorPosition);
+        }
+    });
 }
 initializeWebXR();
 
+function createPath(startPosition) {
+    const points = [
+        startPosition,
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 1), // Move forward
+        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
+    ];
+    const line = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
+    const debugCube = BABYLON.MeshBuilder.CreateBox("debugCube", { size: 0.2 }, scene);
+    debugCube.position = new BABYLON.Vector3(0, 1, 0); // Place it at eye level
+    line.color = new BABYLON.Color3(1, 0, 0); // Red color
+    scene.addMesh(line);
+}
+
 const video = document.getElementById("qr-video");
 const canvasQR = document.getElementById("qr-canvas");
+canvasQR.width = 640;
+canvasQR.height = 480;
 const ctx = canvasQR.getContext("2d");
 
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
@@ -43,21 +50,19 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).th
     video.play();
 });
 
-let qrDetectedPosition = null; // Store detected QR position
-
 function scanQR() {
     ctx.drawImage(video, 0, 0, canvasQR.width, canvasQR.height);
     const imageData = ctx.getImageData(0, 0, canvasQR.width, canvasQR.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-    if (code && !qrDetectedPosition) {  // Only detect once to prevent shifting
+    if (code) {
         console.log("QR Code Detected:", code.data);
         
-        // Get the 3D world position of the QR code
-        qrDetectedPosition = getWorldPositionFromQR(code.location);
-        
-        // Draw the navigation path
-        createPath(qrDetectedPosition);
+        // Convert QR Code position to Babylon.js world coordinates
+        const qrPosition = getWorldPositionFromQR(code.location);
+
+        // Place the navigation path in front of the QR code
+        createPath(qrPosition);
     }
 
     requestAnimationFrame(scanQR);
@@ -67,15 +72,13 @@ function getWorldPositionFromQR(qrLocation) {
     const screenX = qrLocation.topLeftCorner.x + (qrLocation.bottomRightCorner.x - qrLocation.topLeftCorner.x) / 2;
     const screenY = qrLocation.topLeftCorner.y + (qrLocation.bottomRightCorner.y - qrLocation.topLeftCorner.y) / 2;
 
-    // Convert screen space to Babylon.js world space
-    const ray = scene.createPickingRay(screenX, screenY, BABYLON.Matrix.Identity(), camera);
-    const hit = scene.pickWithRay(ray);
-
-    if (hit.hit) {
-        return hit.pickedPoint;
+    // Convert screen space to 3D world space
+    const pickResult = scene.pick(screenX, screenY);
+    if (pickResult.hit) {
+        return pickResult.pickedPoint;
     }
 
-    // Default fallback position
+    // Default position if pick fails
     return new BABYLON.Vector3(0, 0, -2);
 }
 
@@ -83,25 +86,6 @@ video.addEventListener("loadeddata", () => {
     console.log("Camera feed is active");
     scanQR(); // Start scanning only after the video is ready
 });
-
-let currentLine = null; // Store reference to the last line
-
-function createPath(startPosition) {
-    // Remove the previous line if it exists
-    if (currentLine) {
-        currentLine.dispose();
-    }
-
-    const points = [
-        startPosition,
-        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 1), // Move forward
-        new BABYLON.Vector3(startPosition.x, startPosition.y, startPosition.z - 2),
-    ];
-
-    currentLine = BABYLON.MeshBuilder.CreateLines("navigationPath", { points }, scene);
-    currentLine.color = new BABYLON.Color3(0, 1, 0); // Green color
-}
-
 
 
 const footprintTexture = new BABYLON.StandardMaterial("footprintMat", scene);
